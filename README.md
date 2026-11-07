@@ -1,43 +1,59 @@
-# Made For Ju | Premium Digital Storefront
+# Made For Ju
 
-A bespoke, highly interactive single-page website built for **Made For Ju**, an artisanal New York-style cookie bakery operating out of Malta. 
+Website for **Made For Ju**, a small New York-style cookie bakery in Malta. Orders go through Instagram DMs, so every button on the site ends up there.
 
-Designed with a warm, retro-boutique aesthetic, this project acts as a high-converting digital funnel, driving local customers directly to Instagram DMs for weekend pre-orders. 
+## Features
 
-**Live Demo:** [View Live Site Here](https://terrestrialyt.github.io/Made-for-Ju/) 
+- 3D cookie in the hero (Three.js, built in code). It breaks open as you scroll or tap. Phones that can't handle it just get the illustration.
+- Order builder: choose a box, flavours (or Ju's mix), delivery or pickup. The site writes the Instagram message, copies it and opens the DM.
+- Gift option with recipient, occasion, card style and a short note.
+- Order bar that sticks to the bottom on mobile once you scroll past the hero.
+- Fraunces and Outfit fonts, hosted with the site.
+- Animations turn off for people who have reduced motion switched on.
+- Favicon, app icons, share image and a 404 page.
 
-## ✨ Premium Features & Interactivity
+## Stack
 
-This site is built with a focus on tactile user experience and luxury digital marketing principles:
+- **Vite** (plain HTML, CSS and JS, no framework)
+- **Tailwind CSS v4**, compiled at build time
+- **Three.js**, loaded lazily for the hero only
+- Fonts self-hosted via `@fontsource-variable`
 
-* **Minimalist Preloader:** A timed, fade-out logo reveal builds anticipation before the site fully renders.
-* **Scroll-Triggered Parallax:** Cookie assets float and rotate at varying speeds as the user scrolls, adding 3D depth to a flat page.
-* **Interactive Cursor Crumbs:** A lightweight vanilla JavaScript event listener generates dynamic, falling cookie crumbs whenever the user clicks the page.
-* **Artisanal CSS Texture:** A nearly invisible SVG noise filter overlays the page, giving the digital screen the physical texture of baking parchment.
-* **Scarcity-Driven Copywriting:** Optimized micro-copy ("Secure Your Box", "The Weekend Drop") emphasizes exclusivity and drives immediate action.
-* **Bespoke UI Details:** Features a custom chocolate-brown scrollbar and text-selection highlight to maintain brand immersion.
+## Editing content
 
-## 🛠 Tech Stack
+Flavours, prices, box sizes, delivery days and area, the weekly order cut-off, the weekend drop status and the gift options are all in `src/config.js`. Anything left as `null` is hidden on the site.
 
-* **HTML5:** Semantic, SEO-optimized markup.
-* **Tailwind CSS:** Utility-first CSS framework (via CDN) for precise, responsive styling.
-* **Vanilla JavaScript:** Custom logic for the preloader, parallax, and cursor micro-interactions (No heavy frameworks).
-* **AOS Library:** Scroll animation logic (via CDN).
-* **Google Fonts:** 'Fraunces' (Retro Headings) & 'Inter' (Body text).
+- Show prices: set `showPrices: true` and fill in each box's `price`.
+- Order cut-off: for example `orderCutoff: { weekday: 4, hour: 20, label: 'Thursday 8pm' }`.
+- Sold out or limited boxes: `drop: { status: 'soldout' }` or `drop: { status: 'open', slotsLeft: 6 }`.
+- Your own 3D model: put a `.glb` in `public/models/` and set `hero.modelUrl`. If the model has an animation, scrolling scrubs through it.
 
-## 🚀 Deployment (GitHub Pages)
+> The four flavours in `config.js` are placeholders. Replace them with Ju's real menu before launch.
 
-This project is built as a pure, single-file static website (`index.html`) optimized for maximum speed and easy hosting on GitHub Pages.
+### Photos
+The cookie images in `public/art/` are placeholder illustrations (`npm run art` regenerates them). To use real photos, replace a file with the same name, or point the `art` path in `config.js` at a new image.
 
-1. Create a new repository on GitHub and upload your `index.html` file.
-2. Ensure the `logo.png` file is uploaded to the **root** folder, directly next to `index.html`.
-3. Go to your repository **Settings**.
-4. Navigate to **Pages** in the left sidebar.
-5. Under "Build and deployment", set the **Source** to `Deploy from a branch`.
-6. Under "Branch", select `main` (or `master`), leave the folder as `/ (root)`, and click **Save**.
-7. Wait 1-2 minutes, and your live URL will appear at the top of the Pages settings screen.
+## Running it locally
 
-## 👨‍‍💻 Developer
+```bash
+npm install
+```
 
-**Built by [TerrestrialYT](https://terrestrialyt.com/)**  
+```bash
+npm run dev
+```
+
+## Deploying to Vercel
+
+1. Import the repository in Vercel. It detects Vite automatically (`npm run build` → `dist/`).
+2. Optional: once you have a custom domain, add the environment variable `VITE_SITE_URL` (for example `https://madeforju.com`) so social-share links use it.
+3. Deploy. `vercel.json` adds long-term caching for assets, security headers and clean URLs, and `404.html` is served for unknown pages.
+
+### Regenerating images
+- `npm run art`: the stand-in cookie illustrations
+- `npm run icons`: the favicon, app icons and social-share image (needs Playwright installed locally)
+
+## Developer
+
+**Built by [TerrestrialYT](https://terrestrialyt.com/)**
 If you are looking for custom, high-end web development, creative UI/UX design, and digital brand elevation, feel free to reach out.
