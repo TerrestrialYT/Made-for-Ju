@@ -153,10 +153,15 @@ function canvasTex(w, h, paint, srgb = true) {
   return t;
 }
 
-function crustTextures() {
+// Give the browser a chance to handle scrolling/taps between heavy steps.
+const breathe = () =>
+  globalThis.scheduler?.yield ? globalThis.scheduler.yield() : new Promise((r) => setTimeout(r, 0));
+
+async function crustTextures() {
   const S = 512;
   const data = new Float32Array(S * S);
-  for (let y = 0; y < S; y++)
+  for (let y = 0; y < S; y++) {
+    if (y % 24 === 0) await breathe();
     for (let x = 0; x < S; x++) {
       const u = x / S, v = y / S;
       let n = fbm(u * 18, v * 18, 4) * 0.7 + fbm(u * 70 + 3, v * 70 + 7, 2) * 0.3;
@@ -165,6 +170,7 @@ function crustTextures() {
       if (cr < 0.012) n -= (0.012 - cr) * 9;
       data[y * S + x] = n;
     }
+  }
   const toImg = (ctx, fn) => {
     const img = ctx.createImageData(S, S);
     for (let i = 0; i < S * S; i++) {
@@ -273,7 +279,7 @@ function shadowTexture() {
   return canvasTex(256, 256, (ctx) => {
     const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
     g.addColorStop(0, 'rgba(58,34,19,0.55)');
-    g.addColorStop(0.55, 'rgba(58,34,19,0.22)');
+    g.addColorStop(0.5, 'rgba(58,34,19,0.2)');
     g.addColorStop(1, 'rgba(58,34,19,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 256, 256);
@@ -319,10 +325,17 @@ function chunkGeometry(rand) {
 }
 
 // main
-export function mountHero(mount) {
+// spin speed (rad/s); slower for visitors who prefer reduced motion
+let SPIN = 0.32;
+
+export function mountHero(mount, { calm = false } = {}) {
+  if (calm) SPIN = 0.14;
   const stage = mount.closest('.hero-stage');
+  const touch = window.matchMedia('(pointer: coarse)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Phones have very dense screens; 1.5x is visually the same and far cheaper.
+  let dpr = Math.min(window.devicePixelRatio || 1, touch ? 1.5 : 2);
+  renderer.setPixelRatio(dpr);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -347,7 +360,7 @@ export function mountHero(mount) {
   scene.add(rim);
 
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.4, 3.4),
+    new THREE.PlaneGeometry(2.9, 2.9),
     new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false })
   );
   shadow.rotation.x = -Math.PI / 2;
@@ -359,20 +372,36 @@ export function mountHero(mount) {
 
   const state = { breakTarget: 0, breakAmt: 0, manual: false, pointer: new THREE.Vector2(), tilt: new THREE.Vector2(), spin: 0.6, spinTarget: null };
   let onFrame = () => {};
+  let ready = false;
 
-  if (site.hero?.modelUrl) {
-    loadModel(site.hero.modelUrl, root, state).then((fn) => (onFrame = fn));
-  } else {
-    onFrame = buildCookie(root, state);
-  }
+  (site.hero?.modelUrl ? loadModel(site.hero.modelUrl, root, state) : buildCookie(root, state))
+    .then(async (fn) => {
+      onFrame = fn;
+      // Compile shaders in the background (where supported) before showing.
+      try {
+        if (renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile')) {
+          await renderer.compileAsync(scene, camera);
+        }
+      } catch {}
+      ready = true;
+      // Draw the first frame now, even if the cookie is still below the fold,
+      // so it is already there when the visitor scrolls to it.
+      if (first) loop(performance.now());
+    })
+    .catch((err) => console.warn('3D hero unavailable, keeping illustration.', err));
 
   // interaction
-  const heroSection = mount.closest('section');
+  // Break progress follows the cookie's own position on screen, so on phones
+  // (where it sits below the buttons) it opens while you can actually see it.
   const onScroll = () => {
-    const h = heroSection ? heroSection.offsetHeight : window.innerHeight;
-    state.breakTarget = Math.min(1, Math.max(0, window.scrollY / (h * 0.45)));
+    const vh = window.innerHeight;
+    const r = mount.getBoundingClientRect();
+    const centre = r.top + r.height / 2;
+    const start = Math.min(centre + window.scrollY, vh * 0.7);
+    state.breakTarget = Math.min(1, Math.max(0, (start - centre) / (vh * 0.4)));
   };
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
   onScroll();
 
   const onPointerMove = (e) => {
@@ -403,19 +432,37 @@ export function mountHero(mount) {
 
   const clock = new THREE.Timer();
   let first = true;
+  // Adaptive quality: if frames are slow, render fewer pixels.
+  let slowFrames = 0, sampled = 0;
+  const adapt = (rawDt) => {
+    if (dpr <= 0.75 || document.hidden) return;
+    sampled++;
+    if (rawDt > 1 / 40) slowFrames++;
+    if (sampled >= 90) {
+      if (slowFrames > 45) {
+        dpr = Math.max(0.75, dpr * 0.75);
+        renderer.setPixelRatio(dpr);
+        resize();
+      }
+      sampled = slowFrames = 0;
+    }
+  };
   const loop = (time) => {
     clock.update(time);
-    const dt = Math.min(clock.getDelta(), 0.05);
+    if (!ready) return;
+    const rawDt = clock.getDelta();
+    if (!first) adapt(rawDt);
+    const dt = Math.min(rawDt, 0.05);
     const t = clock.getElapsed();
     const target = Math.max(state.breakTarget, state.manual ? 1 : 0);
     state.breakAmt += (target - state.breakAmt) * Math.min(1, dt * 3.2);
     state.tilt.lerp(state.pointer, Math.min(1, dt * 2.5));
 
     onFrame(dt, t);
-    root.position.y = Math.sin(t * 1.1) * 0.025;
+    root.position.y = Math.sin(t * 1.1) * (calm ? 0.01 : 0.025);
     root.rotation.x = state.tilt.y * 0.12;
     root.rotation.z = -state.tilt.x * 0.08;
-    shadow.scale.setScalar(1 + state.breakAmt * 0.25);
+    shadow.scale.setScalar(1 + state.breakAmt * 0.12);
     shadow.material.opacity = 0.9 - Math.sin(t * 1.1) * 0.08;
 
     renderer.render(scene, camera);
@@ -444,12 +491,15 @@ export function mountHero(mount) {
 
 const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
-function buildCookie(root, state) {
+async function buildCookie(root, state) {
   const rand = mulberry(2026);
-  const crust = crustTextures();
+  const crust = await crustTextures();
+  await breathe();
   const inner = interiorTextures();
+  await breathe();
   const shell = buildShell();
   const face = buildBreakFace();
+  await breathe();
 
   const faceMat = new THREE.MeshPhysicalMaterial({
     map: inner.map,
@@ -562,7 +612,7 @@ function buildCookie(root, state) {
 
     // spin while whole; settle so the break faces the camera while opening
     if (e < 0.02) {
-      state.spin += dt * 0.32;
+      state.spin += dt * SPIN;
       state.spinTarget = null;
     } else if (state.spinTarget === null) {
       state.spinTarget = Math.round(state.spin / Math.PI) * Math.PI;
@@ -616,7 +666,7 @@ async function loadModel(url, root, state) {
     action.paused = true;
   }
   return (dt) => {
-    if (state.breakAmt < 0.02) state.spin += dt * 0.32;
+    if (state.breakAmt < 0.02) state.spin += dt * SPIN;
     root.rotation.y = state.spin;
     if (action) {
       action.time = easeInOut(state.breakAmt) * clip.duration * 0.999;

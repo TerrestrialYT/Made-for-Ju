@@ -489,7 +489,15 @@
 
           <fieldset>
             <legend class="eyebrow mb-3">1 · Box size</legend>
-            <div id="box-options" class="grid grid-cols-2 gap-3"></div>
+            <div id="box-options" class="grid grid-cols-2 gap-2.5 sm:gap-3"></div>
+            <div id="custom-size" class="mt-3 hidden items-center justify-between gap-4 rounded-2xl border border-choco/12 bg-white/60 px-4 py-3">
+              <span class="text-sm font-medium">How many cookies?</span>
+              <span class="flex items-center gap-2">
+                <button type="button" class="stepper-btn" data-custom-step="-1" aria-label="One cookie fewer">−</button>
+                <output id="custom-count" class="w-7 text-center text-base font-semibold tabular-nums" aria-live="polite">8</output>
+                <button type="button" class="stepper-btn" data-custom-step="1" aria-label="One cookie more">+</button>
+              </span>
+            </div>
           </fieldset>
 
           <fieldset>

@@ -5,7 +5,7 @@ Website for **Made For Ju**, a small New York-style cookie bakery in Malta. Orde
 ## Features
 
 - 3D cookie in the hero (Three.js, built in code). It breaks open as you scroll or tap. Phones that can't handle it just get the illustration.
-- Order builder: choose a box, flavours (or Ju's mix), delivery or pickup. The site writes the Instagram message, copies it and opens the DM.
+- Order builder: Box of 4, Box of 6 or a custom box (any size from 4 up), flavours (or Ju's mix), delivery or pickup. The site writes the Instagram message, copies it and opens the DM.
 - Gift option with recipient, occasion, card style and a short note.
 - Order bar that sticks to the bottom on mobile once you scroll past the hero.
 - Fraunces and Outfit fonts, hosted with the site.
@@ -24,6 +24,7 @@ Website for **Made For Ju**, a small New York-style cookie bakery in Malta. Orde
 Flavours, prices, box sizes, delivery days and area, the weekly order cut-off, the weekend drop status and the gift options are all in `src/config.js`. Anything left as `null` is hidden on the site.
 
 - Show prices: set `showPrices: true` and fill in each box's `price`.
+- Custom box: `custom: { min: 4, max: 48, pricePerCookie: 3.5 }`. Set `enabled: false` to hide it.
 - Order cut-off: for example `orderCutoff: { weekday: 4, hour: 20, label: 'Thursday 8pm' }`.
 - Sold out or limited boxes: `drop: { status: 'soldout' }` or `drop: { status: 'open', slotsLeft: 6 }`.
 - Your own 3D model: put a `.glb` in `public/models/` and set `hero.modelUrl`. If the model has an animation, scrolling scrubs through it.

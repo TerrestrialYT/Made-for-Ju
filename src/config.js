@@ -20,6 +20,11 @@ export const site = {
     { id: 'box6', label: 'Box of 6', size: 6, tagline: 'Party & Share Size', price: null },
   ],
 
+  // "Custom box": the customer picks how many cookies they want.
+  // min is the smallest order allowed. pricePerCookie (number or null) is
+  // used for the running total when showPrices is on.
+  custom: { enabled: true, min: 4, max: 48, start: 8, pricePerCookie: null },
+
   // SAMPLE MENU, replace with Ju's real flavours before launch.
   // `art` points to an image in /public/art. Swap in real photos with the
   // same file name (or change the path) and nothing else needs to change.
