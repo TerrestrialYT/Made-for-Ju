@@ -30,24 +30,26 @@ async function shot(html, w, h, file) {
     @font-face{font-family:F;src:url(${fraunces}) format('woff2');font-weight:100 900}
     @font-face{font-family:F;font-style:italic;src:url(${frauncesItalic}) format('woff2');font-weight:100 900}
     @font-face{font-family:O;src:url(${outfit}) format('woff2');font-weight:100 900}
-    html,body{margin:0;width:${w}px;height:${h}px;overflow:hidden}
+    html,body{margin:0;width:${w}px;height:${h}px;overflow:hidden;background:transparent}
   </style></head><body>${html}</body></html>`);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(150);
-  await page.screenshot({ path: resolve(PUB, file), omitBackground: false });
+  await page.screenshot({ path: resolve(PUB, file), omitBackground: true });
   console.log('wrote', file);
 }
 
-// Icons: chocolate square (iOS adds its own rounding), ju mark centred.
+// Icons: the round logo on its own cream (iOS/Android add their own rounding).
 const icon = (size, pad) =>
-  `<div style="width:${size}px;height:${size}px;background:#4a2e1b;display:grid;place-items:center">
+  `<div style="width:${size}px;height:${size}px;background:#fff8db;display:grid;place-items:center">
      <img src="${favicon}" style="width:${size * (1 - pad)}px;height:${size * (1 - pad)}px">
    </div>`;
 await shot(`<img src="${favicon}" style="width:32px;height:32px;display:block">`, 32, 32, 'favicon-32.png');
-await shot(icon(180, 0.04), 180, 180, 'apple-touch-icon.png');
-await shot(icon(192, 0.04), 192, 192, 'icon-192.png');
-await shot(icon(512, 0.04), 512, 512, 'icon-512.png');
-await shot(icon(512, 0.3), 512, 512, 'icon-512-maskable.png');
+await shot(icon(180, 0), 180, 180, 'apple-touch-icon.png');
+await shot(icon(192, 0), 192, 192, 'icon-192.png');
+await shot(icon(512, 0), 512, 512, 'icon-512.png');
+await shot(icon(512, 0.22), 512, 512, 'icon-512-maskable.png');
+// Square PNG of the logo for search engines (structured data)
+await shot(`<img src="${logo}" style="width:512px;height:512px;display:block">`, 512, 512, 'logo.png');
 
 // Social-share card (WhatsApp, Instagram DMs, Facebook, X…)
 await shot(
