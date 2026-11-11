@@ -182,6 +182,16 @@ details.faq[open] .faq-icon { transform: rotate(45deg); }
 
   .marquee-track { animation: marquee 38s linear infinite; }
 }
+/* Reduced motion: keep things alive but calm (fades only, slower marquee) */
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal] {
+    opacity: 0;
+    transition: opacity 0.7s ease;
+    transition-delay: var(--delay, 0ms);
+  }
+  .js [data-reveal].is-in { opacity: 1; }
+  .marquee-track { animation: marquee 80s linear infinite; }
+}
 @keyframes marquee { to { transform: translateX(-50%); } }
 
 /* Parallax decorations */
@@ -220,3 +230,11 @@ html.intro #intro { display: grid; }
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 .order-bar.is-visible { transform: none; }
+
+/* Soften the canvas edges so the 3D shadow never ends in a hard line */
+.hero-stage canvas {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent), linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent), linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+  mask-composite: intersect;
+}

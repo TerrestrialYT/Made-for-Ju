@@ -99,7 +99,7 @@ function initDialogs() {
 // scroll reveal
 function initReveal() {
   const els = $$('[data-reveal]');
-  if (calm.matches || !('IntersectionObserver' in window)) {
+  if (!('IntersectionObserver' in window)) {
     els.forEach((el) => el.classList.add('is-in'));
     return;
   }
@@ -116,10 +116,10 @@ function initReveal() {
   els.forEach((el) => io.observe(el));
 }
 
-// gentle parallax (rAF-throttled, off for reduced motion)
+// gentle parallax (rAF-throttled, softer when reduced motion is on)
 function initParallax() {
   const items = $$('.parallax');
-  if (!items.length || calm.matches) return;
+  if (!items.length) return;
   let ticking = false;
   const frame = () => {
     ticking = false;
@@ -128,8 +128,9 @@ function initParallax() {
       const host = el.parentElement.getBoundingClientRect();
       if (host.bottom < -200 || host.top > vh + 200) continue;
       const progress = host.top + host.height / 2 - vh / 2; // 0 when centred
-      const y = -progress * parseFloat(el.dataset.speed || 0.1);
-      const r = -progress * parseFloat(el.dataset.rot || 0);
+      const k = calm.matches ? 0.35 : 1;
+      const y = -progress * parseFloat(el.dataset.speed || 0.1) * k;
+      const r = -progress * parseFloat(el.dataset.rot || 0) * k;
       el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0) rotate(${r.toFixed(2)}deg)`;
     }
   };
@@ -148,7 +149,7 @@ function initParallax() {
 function initCrumbs() {
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)');
   document.addEventListener('click', (e) => {
-    if (calm.matches || !fine.matches) return;
+    if (!fine.matches) return;
     const btn = e.target.closest('[data-crumbs]');
     if (!btn || e.detail === 0) return; // ignore keyboard "clicks"
     for (let i = 0; i < 4; i++) {
@@ -195,11 +196,10 @@ function initOrderBar() {
 
 // 3D hero: loaded after the page is ready, only on capable devices
 function canRun3D() {
-  if (calm.matches) return false;
   const nav = navigator;
   if (nav.connection?.saveData) return false;
-  if (nav.deviceMemory && nav.deviceMemory < 3) return false;
-  if (nav.hardwareConcurrency && nav.hardwareConcurrency < 4) return false;
+  if (nav.deviceMemory && nav.deviceMemory < 2) return false;
+  if (nav.hardwareConcurrency && nav.hardwareConcurrency < 2) return false;
   try {
     const c = document.createElement('canvas');
     return !!(c.getContext('webgl2') || c.getContext('webgl'));
@@ -213,9 +213,11 @@ function initHero3D() {
   if (!mount || !canRun3D()) return;
   const start = () =>
     import('./hero3d.js')
-      .then((m) => m.mountHero(mount))
+      .then((m) => m.mountHero(mount, { calm: calm.matches }))
       .catch((err) => console.warn('3D hero unavailable, keeping illustration.', err));
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
+  const idle = window.requestIdleCallback
+    ? (fn) => window.requestIdleCallback(fn, { timeout: 1500 })
+    : (fn) => setTimeout(fn, 300);
   if (document.readyState === 'complete') idle(start);
   else window.addEventListener('load', () => idle(start), { once: true });
 }

@@ -6,6 +6,9 @@ const hasPrice = (v) => typeof v === 'number' && Number.isFinite(v);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const flavours = site.flavours.filter((f) => f.available !== false);
+const custom = site.custom?.enabled ? site.custom : null;
+const CUSTOM_MIN = Math.max(1, custom?.min ?? 4);
+const CUSTOM_MAX = Math.max(CUSTOM_MIN, custom?.max ?? 48);
 
 const state = {
   boxId: site.boxes[0]?.id,
@@ -14,9 +17,17 @@ const state = {
   fulfil: 'Weekend delivery',
   gift: false,
   cardStyle: site.gift.cardStyles[0] || null,
+  customSize: Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, custom?.start ?? 8)),
 };
 
-const box = () => site.boxes.find((b) => b.id === state.boxId) || site.boxes[0];
+function box() {
+  if (custom && state.boxId === 'custom') {
+    const n = state.customSize;
+    const ppc = custom.pricePerCookie;
+    return { id: 'custom', label: `Custom box of ${n}`, size: n, price: hasPrice(ppc) ? ppc * n : null };
+  }
+  return site.boxes.find((b) => b.id === state.boxId) || site.boxes[0];
+}
 const picked = () => Object.values(state.counts).reduce((a, b) => a + b, 0);
 
 // order cut-off
@@ -57,7 +68,26 @@ function renderBoxes() {
         ${site.showPrices && hasPrice(b.price) ? `<span class="mt-1 text-sm font-semibold">${money(b.price)}</span>` : ''}
       </label>`
     )
-    .join('');
+    .join('') + (custom ? `
+      <label class="opt">
+        <input type="radio" name="box" value="custom" ${state.boxId === 'custom' ? 'checked' : ''} />
+        <span class="font-serif text-lg font-semibold">Custom</span>
+        <span class="text-xs text-choco/65">${CUSTOM_MIN} or more</span>
+        ${site.showPrices && hasPrice(custom.pricePerCookie) ? `<span class="mt-1 text-sm font-semibold">${money(custom.pricePerCookie)} each</span>` : ''}
+      </label>` : '');
+  $('#box-options').classList.toggle('grid-cols-3', !!custom);
+  $('#box-options').classList.toggle('grid-cols-2', !custom);
+}
+
+function syncCustomUI() {
+  const row = $('#custom-size');
+  if (!row) return;
+  const on = !!custom && state.boxId === 'custom';
+  row.classList.toggle('hidden', !on);
+  row.classList.toggle('flex', on);
+  $('#custom-count').textContent = state.customSize;
+  $('[data-custom-step="-1"]').disabled = state.customSize <= CUSTOM_MIN;
+  $('[data-custom-step="1"]').disabled = state.customSize >= CUSTOM_MAX;
 }
 
 function renderFlavours() {
@@ -92,6 +122,7 @@ function renderCardStyles() {
 }
 
 function syncFlavourUI() {
+  syncCustomUI();
   const size = box().size;
   // Clamp counts if the box got smaller.
   let over = picked() - size;
@@ -110,7 +141,9 @@ function syncFlavourUI() {
   for (const f of flavours) {
     $(`[data-count="${f.id}"]`).textContent = state.counts[f.id];
     $(`[data-step="-1"][data-id="${f.id}"]`).disabled = state.counts[f.id] === 0;
-    $(`[data-step="1"][data-id="${f.id}"]`).disabled = total >= size;
+    // In a custom box, adding past the size simply makes the box bigger.
+    const canGrow = state.boxId === 'custom' && size < CUSTOM_MAX;
+    $(`[data-step="1"][data-id="${f.id}"]`).disabled = total >= size && !canGrow;
   }
   $('#flavour-count').textContent = state.juMix
     ? `${size} cookies, our pick`
@@ -134,7 +167,8 @@ function giftDetails() {
 
 export function buildMessage() {
   const b = box();
-  const lines = [`Hey Ju! 👋 I'd love to pre-order a ${b.label}.`];
+  const what = b.id === 'custom' ? `custom box of ${b.size} cookies` : b.label;
+  const lines = [`Hey Ju! 👋 I'd love to pre-order a ${what}.`];
 
   if (state.juMix) {
     lines.push(`• Flavours: Ju's mix`);
@@ -255,11 +289,20 @@ export function initOrder() {
   });
   form.addEventListener('input', update);
   form.addEventListener('click', (e) => {
+    const sizeBtn = e.target.closest('[data-custom-step]');
+    if (sizeBtn) {
+      const next = state.customSize + Number(sizeBtn.dataset.customStep);
+      state.customSize = Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, next));
+      return update();
+    }
     const btn = e.target.closest('[data-step]');
     if (!btn) return;
     const id = btn.dataset.id;
     const step = Number(btn.dataset.step);
-    if (step > 0 && picked() >= box().size) return;
+    if (step > 0 && picked() >= box().size) {
+      if (state.boxId !== 'custom' || state.customSize >= CUSTOM_MAX) return;
+      state.customSize++;
+    }
     state.counts[id] = Math.max(0, state.counts[id] + step);
     update();
   });
